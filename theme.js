@@ -1,27 +1,10 @@
-/* Shared Game API admin appearance + settings. Reads only admin settings through the protected RPC. */
+/* Shared Game API admin appearance. */
 (function(){
+  if(window.__GAME_API_THEME_BOOTED)return; window.__GAME_API_THEME_BOOTED=true;
   var cfg=window.GAME_API_CONFIG||{};
   if(!cfg.SUPABASE_URL||!cfg.SUPABASE_ANON_KEY)return;
-  function apply(s){
-    var theme=s.theme||'dark', root=document.documentElement;
-    root.dataset.theme=theme;
-    root.dataset.accent=s.accent_color||'blue';
-    if(s.compact_sidebar)root.classList.add('compact-sidebar');else root.classList.remove('compact-sidebar');
-    if(s.reduced_motion)root.classList.add('reduced-motion');else root.classList.remove('reduced-motion');
-  }
-  function boot(){
-    if(!window.supabase)return;
-    var db=window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY);
-    db.rpc('admin_get_settings').then(function(r){
-      if(r.error||!r.data)return;
-      var s={};r.data.forEach(function(x){try{s[x.key]=JSON.parse(x.value)}catch(e){s[x.key]=x.value}});apply(s);
-    });
-    db.channel('admin-settings-theme').on('postgres_changes',{event:'UPDATE',schema:'public',table:'admin_settings'},function(p){
-      var k=p.new.key,v=p.new.value;try{v=JSON.parse(v)}catch(e){};var s={};s[k]=v; if(k==='theme'||k==='accent_color'||k==='compact_sidebar'||k==='reduced_motion'){
-        var patch={};patch[k]=v;apply(patch);
-        db.rpc('admin_get_settings').then(function(r){if(!r.error){var all={};r.data.forEach(function(x){try{all[x.key]=JSON.parse(x.value)}catch(e){all[x.key]=x.value}});apply(all)}});
-      }
-    }).subscribe();
-  }
+  var style=document.createElement('style');style.id='game-api-theme-overrides';style.textContent='html[data-theme="light"] body{background:#f4f7fb!important;color:#101827!important}html[data-theme="light"] .side,html[data-theme="light"] .panel,html[data-theme="light"] .card,html[data-theme="light"] .hero,html[data-theme="light"] .status{background:#fff!important;color:#101827!important;border-color:#dbe3ef!important}html[data-theme="light"] .main{background:radial-gradient(circle at 80% 0,#dce8fb,transparent 35%)!important}html[data-theme="light"] .nav a:hover,html[data-theme="light"] .nav .active,html[data-theme="light"] .nav:hover,html[data-theme="light"] .mini,html[data-theme="light"] .metric,html[data-theme="light"] .round,html[data-theme="light"] .panel,.compact-sidebar .side{border-color:#dbe3ef}html[data-theme="light"] .nav a,html[data-theme="light"] .logout,html[data-theme="light"] .welcome,html[data-theme="light"] .ey,html[data-theme="light"] .label,html[data-theme="light"] .small,html[data-theme="light"] .trend,html[data-theme="light"] .muted{color:#64748b!important}html[data-theme="light"] .nav a:hover,html[data-theme="light"] .nav .active{background:#eef3fa!important;color:#101827!important}html[data-theme="light"] .hero{background:linear-gradient(115deg,#edf4ff,#fff 58%,#f5f0ff)!important}html[data-theme="light"] .quick a{background:#eef3fa!important;color:#334155!important;border-color:#dbe3ef!important}html[data-theme="light"] .metric,html[data-theme="light"] .round{background:#f7f9fc!important}html[data-accent="green"] .mark{background:linear-gradient(135deg,#20c997,#0ea477)!important}html[data-accent="purple"] .mark{background:linear-gradient(135deg,#9b7cff,#6847db)!important}html[data-accent="orange"] .mark{background:linear-gradient(135deg,#ff9f43,#e87516)!important}.reduced-motion *{transition:none!important;animation:none!important}';document.head.appendChild(style);
+  function apply(s){var root=document.documentElement;var theme=s.theme||'dark';if(theme==='system')theme=matchMedia('(prefers-color-scheme:light)').matches?'light':'dark';root.dataset.theme=theme;root.dataset.accent=s.accent_color||'blue';root.classList.toggle('compact-sidebar',!!s.compact_sidebar);root.classList.toggle('reduced-motion',!!s.reduced_motion)}
+  function boot(){if(!window.supabase)return;var db=window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY);db.rpc('admin_get_settings').then(function(r){if(r.error||!r.data)return;var s={};r.data.forEach(function(x){try{s[x.key]=JSON.parse(x.value)}catch(e){s[x.key]=x.value}});apply(s)});db.channel('admin-settings-theme').on('postgres_changes',{event:'UPDATE',schema:'public',table:'admin_settings'},function(){db.rpc('admin_get_settings').then(function(r){if(!r.error){var s={};r.data.forEach(function(x){try{s[x.key]=JSON.parse(x.value)}catch(e){s[x.key]=x.value}});apply(s)}})}).subscribe()}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();
